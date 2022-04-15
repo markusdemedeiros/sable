@@ -1,0 +1,127 @@
+/* SABLE: Simple type system for Boolean + Arithmetic expressions */ 
+
+
+
+/* SABLE syntax */
+domain SABLE_SYNTAX {
+    function syntax_true(): SABLE_SYNTAX
+    function syntax_false(): SABLE_SYNTAX
+    function syntax_if(t1: SABLE_SYNTAX, t2: SABLE_SYNTAX, t3: SABLE_SYNTAX): SABLE_SYNTAX
+    function syntax_natural(n: Int): SABLE_SYNTAX
+    function syntax_plus(t1: SABLE_SYNTAX, t2: SABLE_SYNTAX): SABLE_SYNTAX
+    function syntax_zero (t: SABLE_SYNTAX): SABLE_SYNTAX
+
+    /* TODO: .... */
+    axiom all_syntax {
+        forall s: SABLE_SYNTAX :: 
+               s == syntax_true() 
+            || s == syntax_false()
+            || (exists n:Int :: (s == syntax_natural(n)))
+            || (exists s1: SABLE_SYNTAX, s2: SABLE_SYNTAX, s3: SABLE_SYNTAX :: s == syntax_if(s1, s2, s3))
+            || (exists s4: SABLE_SYNTAX, s5: SABLE_SYNTAX :: s == syntax_plus(s4, s5))
+            || (exists s6: SABLE_SYNTAX :: s == syntax_zero(s6))
+    }
+}
+
+domain SABLE_TYPE {
+    function type_bool(): SABLE_TYPE
+    function type_nat(): SABLE_TYPE
+
+    /* TODO: Allows backwards reasoning?? */
+    axiom ax_all_types { forall t: SABLE_TYPE :: (t == type_bool()) || (t == type_nat()) }
+
+    /* Function which takes a term to it's type (there is only one type for each term) */
+    function type(s: SABLE_SYNTAX): SABLE_TYPE
+
+    axiom ax_type_tt { type(syntax_true()) == type_bool() }
+    axiom ax_type_tf { type(syntax_false()) == type_bool() }
+    axiom ax_type_tn { forall n: Int :: { type(syntax_natural(n)) } 
+        n >= 0 
+            ==> type(syntax_natural(n)) == type_nat() 
+    }
+    axiom ax_type_ti { forall t1: SABLE_SYNTAX, t2: SABLE_SYNTAX, t3: SABLE_SYNTAX :: { type(syntax_if(t1,t2,t3)) } 
+        (type(t1) == type_bool()) && (type(t2) == type(t3))
+            ==> type(syntax_if(t1,t2,t3)) == type(t2)
+    }
+    axiom ax_type_tp { forall t1: SABLE_SYNTAX, t2: SABLE_SYNTAX :: { type(syntax_plus(t1,t2)) }
+        (type(t1) == type_nat()) && (type(t2) == type_nat())
+            ==> type(syntax_plus(t1, t2)) == type_nat()
+    }
+    axiom ax_type_tz {forall t: SABLE_SYNTAX :: { type(syntax_zero(t)) }
+        type(t) == type_nat() 
+            ==>  type(syntax_zero(t)) == type_bool()
+    }
+
+    /* SABLE Term's are well-typed sable syntax 
+     * Every piece of SABLE syntax is well- or ill-typed
+     */
+
+    function term(s: SABLE_SYNTAX): Bool
+    
+    axiom ax_is_typed_foward {
+        forall s: SABLE_SYNTAX :: {term(s)}
+            type(s) == type_bool() || type(s) == type_nat() ==> term(s)
+    }
+
+    /* TODO! Is this needed? */
+    axiom ax_is_ill_typed {
+        forall s: SABLE_SYNTAX :: {term(s)}
+            type(s) != type_bool() && type(s) != type_nat() ==> !term(s)
+    }
+}
+
+method tests()
+{
+    assert term(syntax_true());
+    assert term(syntax_false());
+    assert term(syntax_natural(0));
+    assert term(syntax_natural(10));
+    assert term(syntax_if(syntax_false(), syntax_true(), syntax_false()));
+    assert term(syntax_if(syntax_false(), syntax_natural(5), syntax_natural(7)));
+    assert term(syntax_zero(syntax_natural(0)));
+    assert term(syntax_plus(syntax_natural(2), syntax_natural(3)));
+    
+    assert term(
+        syntax_if(
+            syntax_zero(
+                syntax_plus(
+                    syntax_natural(0),
+                    syntax_if(
+                        syntax_false(),
+                        syntax_natural(1),
+                        syntax_natural(2)
+                    )
+                )
+            ),
+            syntax_if(
+                syntax_false(),
+                syntax_true(),
+                syntax_false()
+            ),
+            syntax_false()
+        )
+    );
+}
+
+/* PROBLEM!
+ * For the following assertions, the verifier (correctly) says that the assertions might not hold.
+ *
+ * However, we should have a stronger statement: that the negations hold.
+ * (and those negations don't verify)
+ *
+ * What axioms do we need to let viper prove this?
+ *
+ */ 
+method failing_tests()
+{
+    // assert term(syntax_if(syntax_false(), syntax_natural(5), syntax_natural(-1)));
+    // assert term(syntax_if(syntax_false(), syntax_natural(2), syntax_false()));
+    // assert term(syntax_if(syntax_false(), syntax_plus(syntax_natural(2),syntax_natural(2)), syntax_false()));
+    // assert term(syntax_if(syntax_false(), syntax_natural(2), syntax_zero(syntax_natural(3))));
+    // assert term(syntax_if(syntax_natural(4), syntax_natural(5), syntax_natural(7)));
+    // assert term(syntax_zero(syntax_true()));
+    // assert term(syntax_plus(syntax_false(), syntax_natural(3)));
+    // assert term(syntax_zero(syntax_if(syntax_false(), syntax_false(), syntax_false())));
+}
+
+
